@@ -552,95 +552,90 @@ if(WITH_JAVA)
   add_subdirectory(java)
 endif()
 
-if(ENABLE_SHARED)
+if(BUILD_SHARED_LIBS)
   add_subdirectory(sharedlib)
-endif()
-
-if(ENABLE_STATIC)
-  add_library(jpeg-static STATIC ${JPEG_SOURCES} $<TARGET_OBJECTS:simd>
-    ${SIMD_OBJS})
+else()
+  add_library(jpeg "${JPEG_SOURCES}" $<TARGET_OBJECTS:simd> ${SIMD_OBJS})
   if(NOT MSVC)
-    set_target_properties(jpeg-static PROPERTIES OUTPUT_NAME jpeg)
+    set_target_properties(jpeg PROPERTIES OUTPUT_NAME jpeg)
   endif()
 endif()
 
 if(WITH_TURBOJPEG)
-  if(ENABLE_SHARED)
-    set(TURBOJPEG_SOURCES ${JPEG_SOURCES} $<TARGET_OBJECTS:simd> ${SIMD_OBJS}
-      turbojpeg.c transupp.c jdatadst-tj.c jdatasrc-tj.c rdbmp.c rdppm.c
-      wrbmp.c wrppm.c)
-    set(TJMAPFILE ${CMAKE_CURRENT_SOURCE_DIR}/turbojpeg-mapfile)
+  set(TURBOJPEG_SOURCES ${JPEG_SOURCES} $<TARGET_OBJECTS:simd> ${SIMD_OBJS}
+    turbojpeg.c transupp.c jdatadst-tj.c jdatasrc-tj.c rdbmp.c rdppm.c
+    wrbmp.c wrppm.c)
+  set(TJMAPFILE ${CMAKE_CURRENT_SOURCE_DIR}/turbojpeg-mapfile)
   if(WITH_JAVA)
     set(TURBOJPEG_SOURCES ${TURBOJPEG_SOURCES} turbojpeg-jni.c)
     include_directories(${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
       set(TJMAPFILE ${CMAKE_CURRENT_SOURCE_DIR}/turbojpeg-mapfile.jni)
   endif()
-    add_library(turbojpeg SHARED ${TURBOJPEG_SOURCES})
-    set_property(TARGET turbojpeg PROPERTY COMPILE_FLAGS
-      "-DBMP_SUPPORTED -DPPM_SUPPORTED")
-    if(WIN32)
-    set_target_properties(turbojpeg PROPERTIES DEFINE_SYMBOL DLLDEFINE)
+  add_library(turbojpeg ${TURBOJPEG_SOURCES})
+  set_property(TARGET turbojpeg PROPERTY COMPILE_FLAGS
+    "-DBMP_SUPPORTED -DPPM_SUPPORTED")
+  if(WIN32)
+  set_target_properties(turbojpeg PROPERTIES DEFINE_SYMBOL DLLDEFINE)
+  endif()
+  if(MINGW)
+    set_target_properties(turbojpeg PROPERTIES LINK_FLAGS -Wl,--kill-at)
+  endif()
+  if(BUILD_SHARED_LIBS AND APPLE AND (NOT CMAKE_OSX_DEPLOYMENT_TARGET OR
+                CMAKE_OSX_DEPLOYMENT_TARGET VERSION_GREATER 10.4))
+    if(NOT CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG)
+      set(CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG "-Wl,-rpath,")
     endif()
-    if(MINGW)
-      set_target_properties(turbojpeg PROPERTIES LINK_FLAGS -Wl,--kill-at)
-    endif()
-    if(APPLE AND (NOT CMAKE_OSX_DEPLOYMENT_TARGET OR
-                  CMAKE_OSX_DEPLOYMENT_TARGET VERSION_GREATER 10.4))
-      if(NOT CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG)
-        set(CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG "-Wl,-rpath,")
-      endif()
-      set_target_properties(turbojpeg PROPERTIES MACOSX_RPATH 1)
-    endif()
+    set_target_properties(turbojpeg PROPERTIES MACOSX_RPATH 1)
+  endif()
+  set_target_properties(turbojpeg PROPERTIES
+    SOVERSION ${TURBOJPEG_SO_MAJOR_VERSION} VERSION ${TURBOJPEG_SO_VERSION})
+  if(TJMAPFLAG)
     set_target_properties(turbojpeg PROPERTIES
-      SOVERSION ${TURBOJPEG_SO_MAJOR_VERSION} VERSION ${TURBOJPEG_SO_VERSION})
-    if(TJMAPFLAG)
-      set_target_properties(turbojpeg PROPERTIES
-        LINK_FLAGS "${TJMAPFLAG}${TJMAPFILE}")
-    endif()
-
-    add_executable(tjunittest tjunittest.c tjutil.c md5/md5.c md5/md5hl.c)
-    target_link_libraries(tjunittest turbojpeg)
-    if(UNIX)
-      target_link_libraries(tjunittest m)
-    endif()
-
-    add_executable(tjbench tjbench.c tjutil.c)
-    target_link_libraries(tjbench turbojpeg)
-    if(UNIX)
-      target_link_libraries(tjbench m)
-    endif()
-
-    add_executable(tjexample tjexample.c)
-    target_link_libraries(tjexample turbojpeg)
-    if(UNIX)
-      target_link_libraries(tjexample m)
-    endif()
+      LINK_FLAGS "${TJMAPFLAG}${TJMAPFILE}")
   endif()
 
-  if(ENABLE_STATIC)
-    add_library(turbojpeg-static STATIC ${JPEG_SOURCES} $<TARGET_OBJECTS:simd>
-      ${SIMD_OBJS} turbojpeg.c transupp.c jdatadst-tj.c jdatasrc-tj.c rdbmp.c
-      rdppm.c wrbmp.c wrppm.c)
-    set_property(TARGET turbojpeg-static PROPERTY COMPILE_FLAGS
-      "-DBMP_SUPPORTED -DPPM_SUPPORTED")
-    if(NOT MSVC)
-      set_target_properties(turbojpeg-static PROPERTIES OUTPUT_NAME turbojpeg)
-    endif()
+  add_executable(tjunittest tjunittest.c tjutil.c md5/md5.c md5/md5hl.c)
+  target_link_libraries(tjunittest turbojpeg)
+  if(UNIX)
+    target_link_libraries(tjunittest m)
+  endif()
 
-    add_executable(tjunittest-static tjunittest.c tjutil.c md5/md5.c
-      md5/md5hl.c)
-    target_link_libraries(tjunittest-static turbojpeg-static)
-    if(UNIX)
-      target_link_libraries(tjunittest-static m)
-    endif()
+  add_executable(tjbench tjbench.c tjutil.c)
+  target_link_libraries(tjbench turbojpeg)
+  if(UNIX)
+    target_link_libraries(tjbench m)
+  endif()
 
-    add_executable(tjbench-static tjbench.c tjutil.c)
-    target_link_libraries(tjbench-static turbojpeg-static)
-    if(UNIX)
-      target_link_libraries(tjbench-static m)
-    endif()
+  add_executable(tjexample tjexample.c)
+  target_link_libraries(tjexample turbojpeg)
+  if(UNIX)
+    target_link_libraries(tjexample m)
   endif()
 endif()
+
+  # if(ENABLE_STATIC)
+  #   add_library(turbojpeg-static STATIC ${JPEG_SOURCES} $<TARGET_OBJECTS:simd>
+  #     ${SIMD_OBJS} turbojpeg.c transupp.c jdatadst-tj.c jdatasrc-tj.c rdbmp.c
+  #     rdppm.c wrbmp.c wrppm.c)
+  #   set_property(TARGET turbojpeg-static PROPERTY COMPILE_FLAGS
+  #     "-DBMP_SUPPORTED -DPPM_SUPPORTED")
+  #   if(NOT MSVC)
+  #     set_target_properties(turbojpeg-static PROPERTIES OUTPUT_NAME turbojpeg)
+  #   endif()
+
+  #   # add_executable(tjunittest-static tjunittest.c tjutil.c md5/md5.c
+  #   #   md5/md5hl.c)
+  #   # target_link_libraries(tjunittest-static turbojpeg-static)
+  #   # if(UNIX)
+  #   #   target_link_libraries(tjunittest-static m)
+  #   # endif()
+
+  #   add_executable(tjbench-static tjbench.c tjutil.c)
+  #   target_link_libraries(tjbench-static turbojpeg-static)
+  #   if(UNIX)
+  #     target_link_libraries(tjbench-static m)
+  #   endif()
+  # endif()
 
 if(WIN32)
   set(USE_SETMODE "-DUSE_SETMODE")
