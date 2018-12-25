@@ -4,6 +4,13 @@ if(CMAKE_EXECUTABLE_SUFFIX)
   set(CMAKE_EXECUTABLE_SUFFIX_TMP ${CMAKE_EXECUTABLE_SUFFIX})
 endif()
 
+include(cmakescripts/HunterGate.cmake)
+
+HunterGate(
+    URL "https://github.com/ruslo/hunter/archive/v0.23.83.tar.gz"
+    SHA1 "12dec078717539eb7b03e6d2a17797cba9be9ba9"
+)
+
 project(mozjpeg C)
 set(VERSION 3.4.0)
 string(REPLACE "." ";" VERSION_TRIPLET ${VERSION})
@@ -662,10 +669,12 @@ if(ENABLE_STATIC)
 
   if(PNG_SUPPORTED)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
-    find_package(PNG 1.6 REQUIRED)
-    find_package(ZLIB REQUIRED)
-    target_include_directories(cjpeg-static PUBLIC ${PNG_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR})
-    target_link_libraries(cjpeg-static ${PNG_LIBRARY} ${ZLIB_LIBRARY})
+    hunter_add_package(PNG)
+    hunter_add_package(ZLIB)
+    find_package(PNG CONFIG REQUIRED)
+    find_package(ZLIB CONFIG REQUIRED)
+    # target_include_directories(cjpeg-static PUBLIC ${PNG_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR})
+    target_link_libraries(cjpeg-static PNG::png ZLIB::zlib)
   endif()
 
   add_executable(djpeg-static djpeg.c cdjpeg.c rdcolmap.c rdswitch.c wrgif.c
@@ -1353,17 +1362,19 @@ endif()
 ###############################################################################
 
 set(EXE ${CMAKE_EXECUTABLE_SUFFIX})
+set(TARGETS_EXPORT_NAME "${CMAKE_PROJECT_NAME}Targets")
 
 if(WITH_TURBOJPEG)
   if(ENABLE_SHARED)
-    install(TARGETS turbojpeg tjbench
+    install(TARGETS turbojpeg tjbench EXPORT "${TARGETS_EXPORT_NAME}"
       ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
   if(ENABLE_STATIC)
-    install(TARGETS turbojpeg-static ARCHIVE
-      DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(
+      TARGETS turbojpeg-static EXPORT "${TARGETS_EXPORT_NAME}"
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
     if(NOT ENABLE_SHARED)
       install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/tjbench-static${EXE}
         DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME tjbench${EXE})
@@ -1373,8 +1384,9 @@ if(WITH_TURBOJPEG)
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
+
 if(ENABLE_STATIC)
-  install(TARGETS jpeg-static ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(TARGETS jpeg-static EXPORT "${TARGETS_EXPORT_NAME}" ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
   if(NOT ENABLE_SHARED)
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/cjpeg-static${EXE}
       DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME cjpeg${EXE})
@@ -1421,3 +1433,24 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmakescripts/cmake_uninstall.cmake.i
   "cmake_uninstall.cmake" IMMEDIATE @ONLY)
 
 add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P cmake_uninstall.cmake)
+
+include(CMakePackageConfigHelpers)
+
+set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(project_config "${generated_dir}/${CMAKE_PROJECT_NAME}Config.cmake")
+set(config_install_dir "${CMAKE_INSTALL_LIBDIR}/${CMAKE_PROJECT_NAME}/cmake")
+set(NAMESPACE "MOZJPEG::")
+
+configure_package_config_file(
+  release/Config.cmake.in
+  ${project_config}
+  INSTALL_DESTINATION "${config_install_dir}"
+)
+
+install(FILES "${project_config}" DESTINATION "${config_install_dir}")
+
+install(
+  EXPORT "${TARGETS_EXPORT_NAME}"
+  NAMESPACE "${NAMESPACE}"
+  DESTINATION "${config_install_dir}"
+)
