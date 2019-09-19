@@ -46,3 +46,4 @@ Makefile
 test_yuv*.jpg
 CMakeCache.txt
 CTestTestfile.cmake
+/bazel-*
