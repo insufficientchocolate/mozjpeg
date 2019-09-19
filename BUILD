@@ -43,7 +43,7 @@ cmake_config(
 )
 
 cc_library(
-    name = "libjpeg",
+    name = "mozjpeg",
     srcs = [
         "jcapimin.c",
         "jcapistd.c",
